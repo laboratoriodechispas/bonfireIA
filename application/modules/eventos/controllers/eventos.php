@@ -72,17 +72,13 @@ class Eventos extends Admin_Controller
 
 				log_message('debug',__METHOD__."->".__LINE__."->count(\$arrTmp['rama']): ".count($arrTmp['rama']));
 				$data = array();
+				$empt=array();
 				for ($i=0; $i < count($arrTmp['rama']); $i++) {
+					foreach ($arrReglas as $key) {
 
-					array_push($data,
-						array(
-							'rama' => $arrTmp['rama'][$i],
-							'edad_min'=>$arrTmp['edad_min'][$i],
-							'edad_max'=>$arrTmp['edad_max'][$i],
-							'categoria'=>$arrTmp['categoria'][$i],
-							'distancia'=>$arrTmp['distancia'][$i],
-							'costo'=>$arrTmp['costo'][$i])
-					);
+						$empt[$key] = $arrTmp[$key][$i];
+					}
+					array_push($data,	$empt);
 				}
 
 
