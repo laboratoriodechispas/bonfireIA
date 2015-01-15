@@ -8,6 +8,7 @@
         <tr>
             <th class="column-check"><input class="check-all" type="checkbox" /></th>
             <th>Title</th>
+            <th>Inscritos</th>
             <th style="width: 10em">Date</th>
         </tr>
         </thead>
@@ -27,6 +28,11 @@
                     <td>
                         <a href="<?php echo site_url('eventos/editar_evento/'. $evento->id) ?>">
                             <?php e($evento->nombre_evento); ?>
+                        </a>
+                    </td>
+                    <td>
+                        <a href="<?php echo site_url('eventos/ver_inscritos/'. $evento->id) ?>">
+                            <?php e('ver'); ?>
                         </a>
                     </td>
                     <td>
