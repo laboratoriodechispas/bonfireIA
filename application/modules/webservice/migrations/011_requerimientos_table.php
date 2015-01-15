@@ -18,7 +18,8 @@ class Migration_requerimientos_table extends Migration
         $this->dbforge->add_field('categoria VARCHAR(255) NOT NULL');
         $this->dbforge->add_field('rama VARCHAR(255) NOT NULL');
         $this->dbforge->add_field('distancia VARCHAR(255) NOT NULL');
-        $this->dbforge->add_field('rango_edad VARCHAR(10) NOT NULL');
+        $this->dbforge->add_field('edad_min int(10) NOT NULL');
+        $this->dbforge->add_field('edad_max int(10) NOT NULL');
         $this->dbforge->add_field('costo VARCHAR(10) NOT NULL');
         $this->dbforge->add_field('created_on DATETIME NOT NULL');
         $this->dbforge->add_field('modified_on DATETIME NULL');

@@ -40,6 +40,33 @@ class Gestion_requerimientos extends \REST_Controller{
         $this->response($data);
     }// end get_all_evento_post()
 
+    public function get_filter_requerimientos_post()
+    {
+        if($this->post()){
+
+            $traslate   = array('mujer','femenino','hombre','masculino');
+            $replace    = array('femenil','femenil','varonil','varonil');
+
+            $edad       = $this->post('edad');
+            $sexo       = ($this->post('sexo'))?str_replace($traslate,$replace,$this->post('sexo')):'';
+            $id_evento  = $this->post('id_evento');
+
+
+            $requerimientos = $this->requerimientos_model->where(array('deleted'=> 0,'id_evento'=>$id_evento,'edad_min <='=>$edad,'edad_max >='=>$edad,'rama'=>$sexo))->find_all();
+            if($requerimientos)
+            {
+                $data = array('response' => 'ok','data'=>$requerimientos);
+            }
+            else
+            {
+                $data = array('response' => 'error','message'=>'sin categoria para esos datos');
+            }
+
+
+            $this->response($data);
+        }
+
+    }// end get_all_evento_post()
 
 
 }

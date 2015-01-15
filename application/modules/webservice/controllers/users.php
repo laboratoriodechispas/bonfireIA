@@ -189,7 +189,6 @@ class users extends \REST_Controller{
             {
                 $usuario = array(
                     'email'    => $this->post('email'),
-                    'username' => $this->post('username'),
                     'password' => $this->post('password')
                 );
                 /*

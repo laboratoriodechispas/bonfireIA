@@ -20,6 +20,7 @@ class Migration_inscripciones_table extends Migration
         $this->dbforge->add_field('fecha_inscripcion VARCHAR(255) NOT NULL');
         $this->dbforge->add_field('fuente_subscripcion VARCHAR(255) NOT NULL');
         $this->dbforge->add_field('tipo_pago INT(11) NOT NULL');
+        $this->dbforge->add_field('status INT(11) NOT NULL');
         $this->dbforge->add_field('created_on DATETIME NOT NULL');
         $this->dbforge->add_field('modified_on DATETIME NULL');
         $this->dbforge->add_field('deleted TINYINT(1) NOT NULL DEFAULT 0');
