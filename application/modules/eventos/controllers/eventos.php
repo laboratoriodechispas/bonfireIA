@@ -1,9 +1,9 @@
 <?php
 class Eventos extends Admin_Controller
 {
-	public function __construct()
-	{
-		parent::__construct();
+    public function __construct()
+    {
+        parent::__construct();
 
         $this->load->model('eventos_model');
         $this->load->model('tipo_evento_model');
@@ -13,207 +13,230 @@ class Eventos extends Admin_Controller
         $this->load->model('respuestas_def_model');
         $this->load->model('relacion_preg_resp_model');
         $this->load->model('inscripciones_model');
+        $this->load->model('requerimientos_model');
         $this->load->library('users/auth');
         Template::set('toolbar_title', 'Administrar eventos');
         Template::set_block('sub_nav', 'content/sub_nav');
-	}
+    }
 
-	//--------------------------------------------------------------------
+    //--------------------------------------------------------------------
 
-	public function index()
-	{
-		if ($this->input->post('submit')) {
-			$array = $this->input->post('checked');
-			$data  = "";
+    public function index()
+    {
+        if ($this->input->post('submit')) {
+            $array = $this->input->post('checked');
+            $data  = "";
 
-			for($i = 0;$i<=count($array)-1;$i++){
-				if($i!=count($array)-1){
-					$data .= $array[$i].",";
-				}else{
-					$data .= $array[$i];
-				}
+            for($i = 0;$i<=count($array)-1;$i++){
+                if($i!=count($array)-1){
+                    $data .= $array[$i].",";
+                }else{
+                    $data .= $array[$i];
+                }
 
-			}
+            }
 
-			$delete = $this->eventos_model->delete($data);
-			if($delete){
-				Template::set_message('You post was successfully saved.', 'success');
-			}
-		}
-		$eventos = $this->eventos_model->where('deleted', 0)->find_all();
+            $delete = $this->eventos_model->delete($data);
+            if($delete){
+                Template::set_message('You post was successfully saved.', 'success');
+            }
+        }
+        $eventos = $this->eventos_model->where('deleted', 0)->find_all();
 
-		Template::set('toolbar_title', 'Gestion de eventos');
-		Template::set('eventos', $eventos);
-		Template::set_view('content/index');
-		Template::render();
-	}
+        Template::set('toolbar_title', 'Gestion de eventos');
+        Template::set('eventos', $eventos);
+        Template::set_view('content/index');
+        Template::render();
+    }
 
-	//--------------------------------------------------------------------
+    //--------------------------------------------------------------------
 
-	/**
-	 * Agrega un evento
-	 *
-	 * Funcion encargada de agregar un evento
-	 */
-	public function agregar()
-	{
-		$keys_bases       = ['evento','categorias','inscripcion','paquetes','cronometraje','fotos','ruta','premiacion','generales','otros'];
-		$user             = $this->current_user->id;
-		$tipos_evento     = $this->get_tipo_evento();
-		$convocatorias    = $this->get_tit_convocatoria();
-		log_message('debug',__METHOD__."->".__LINE__."->post: ".print_r($this->input->post(NULL, true), 1));
-
-
-				$arrReglas = array('rama', 'edad_min', 'edad_max', 'categoria', 'distancia', 'costo');
-				$arrTmp = array();
-				foreach ($arrReglas as $regla)
-				{
-					$arrTmp[$regla] =$this->input->post($regla, true);
-				}
-
-				log_message('debug',__METHOD__."->".__LINE__."->count(\$arrTmp['rama']): ".count($arrTmp['rama']));
-				$data = array();
-				$empt=array();
-				for ($i=0; $i < count($arrTmp['rama']); $i++) {
-					foreach ($arrReglas as $key) {
-
-						$empt[$key] = $arrTmp[$key][$i];
-					}
-					array_push($data,	$empt);
-				}
+    /**
+     * Agrega un evento
+     *
+     * Funcion encargada de agregar un evento
+     */
+    public function agregar()
+    {
+        $keys_bases    = ['evento','categorias','inscripcion','paquetes','cronometraje','fotos','ruta','premiacion','generales','otros'];
+        $user          = $this->current_user->id;
+        $tipos_evento  = $this->get_tipo_evento();
+        $convocatorias = $this->get_tit_convocatoria();
 
 
-				log_message('debug',__METHOD__."->".__LINE__."->(\$data): ". print_r($data,1));
-				die();
+        if ($this->input->post()) {
+
+           
+
+            $data = array(
+                'nombre_evento'  => $this->input->post("nombre_evento"),
+                'descripcion'    => $this->input->post("descripcion"),
+                'fecha'          => $this->input->post("fecha"),
+                'img_destacada'  => $this->input->post("img_destacada"),
+                'img_thumb'      => $this->input->post("img_thumb"),
+                'tipo_evento'    => $this->input->post("tipo_evento"),
+                'id_organizador' => $user,
+                'slug'           => url_title($this->input->post("nombre_evento"),'dash',true),
+                'status'         => 1
+            );
+
+            $id = $this->eventos_model->insert($data);
+
+            if ($id>0) {
+
+                $arrReglas = array('rama', 'edad_min', 'edad_max', 'categoria', 'distancia', 'costo','id_evento');
+                $arrTmp = array();
+                $arrId  = array();
+
+                foreach ($arrReglas as $regla)
+                {
+                    $arrTmp[$regla] = $this->input->post($regla, true);
+
+                }
+                
+                $vars_insert = array();
+                $empt        = array();
+
+                for ($i=0; $i < count($arrTmp['rama']); $i++) {
+
+                    foreach ($arrReglas as $key) {
+                        $empt[$key] = $arrTmp[$key][$i];
+
+                        if($key == 'id_evento')
+                        {
+                            $empt[$key] = $id;
+                        }
+                    }
+                    array_push($vars_insert,  $empt);
+                }
+                    
+                $requisito = $this->requerimientos_model->insert_batch($vars_insert);
+                if($requisito)
+                {
+                    Template::set_message('Tu evento ha sido cargado con exito.', 'success');
+                }
+                else
+                {
+                    Template::set_message('Ha ocurrido un error al insertar los requerimientos.', 'error');
+                }   
+
+                $data_convocatoria = array();
+
+                for($i = 0; $i<=count($keys_bases)-1;$i++)
+                {
+                    $content = $keys_bases[$i];
+                    $input = array(
+                        'contenido'           => $this->input->post($content),
+                        'id_tit_convocatoria' => $this->input->post('id-'.$content),
+                        'id_evento'           => $id  
+                    );
+
+                    array_push($data_convocatoria,$input);
+                }
+
+                $preguntas  = $this->input->post('pregunta');
+                $tipo       = $this->input->post('tipo');
+
+                if($preguntas){
+                $question = array();
+                $answer   = array();
+                $radio    = 1;
+                $select   = 1;
+                $check    = 1;
+                for($i = 0;$i<= count($preguntas)-1;$i++ )
+                {
+                    $resp = '';
+                    if($tipo[$i]=='open')
+                    {
+                        $resp = 'open';
+                        $loop = '';
+                    }
+                    elseif($tipo[$i]=='radio')
+                    {
+                        $loop = $this->input->post("respuesta-radio-$radio");
+                        $radio++;
+
+                    }
+                    elseif($tipo[$i]=='select')
+                    {
+                        $loop = $this->input->post("respuesta-select-$select");
+                        $select++;
+                    }
+                    elseif($tipo[$i]=='check')
+                    {
+                        $loop = $this->input->post("respuesta-check-$check");
+                        $check++;
+                    }
+
+                    if($loop!='')
+                    {
+                        for ($j = 0; $j <= count($loop) - 1; $j++)
+                        {
+                            if ($j != count($loop)-1)
+                            {
+                                $resp .= $loop[$j] . '|';
+                            }
+                            else
+                            {
+                                $resp .= $loop[$j];
+                            }
+                        }
+                    }
+
+                    array_push($question,array('pregunta' =>$preguntas[$i],'tipo'=>$tipo[$i],'id_evento' => $id));
+                    array_push($answer,array('respuesta'=>$resp,'id_evento'=>$id));
 
 
-		// die();
-		if ($this->input->post(NULL, true)) {
-
-			$data = array(
-				'nombre_evento'  => $this->input->post("nombre_evento"),
-				'descripcion'    => $this->input->post("descripcion"),
-				'fecha'          => $this->input->post("fecha"),
-				'img_destacada'  => $this->input->post("img_destacada"),
-				'img_thumb'      => $this->input->post("img_thumb"),
-				'tipo_evento'    => $this->input->post("tipo_evento"),
-				'id_organizador' => $user,
-				'slug'           => url_title($this->input->post("nombre_evento"),'dash',true),
-				'status'         => 1
-			);
-
-			// $id = $this->eventos_model->insert($data);
-			if ($id=0) {
-			// if ($id>0) {
-
-				$data_convocatoria = array();
-				for($i = 0; $i<=count($keys_bases)-1;$i++)
-				{
-					$content = $keys_bases[$i];
-					$input = array(
-						'contenido' => $this->input->post($content),
-						'id_tit_convocatoria' => $this->input->post('id-'.$content)
-					);
-
-					array_push($data_convocatoria,$input);
-				}
-
-				$preguntas  = $this->input->post('pregunta');
-				$tipo       = $this->input->post('tipo');
+                }
 
 
-				$question = array();
-				$answer   = array();
-				$radio    = 1;
-				$select   = 1;
-				$check    = 1;
-				for($i = 0;$i<= count($preguntas)-1;$i++ )
-				{
-					$resp = '';
-					if($tipo[$i]=='open')
-					{
-						$resp = 'open';
-						$loop = '';
-					}
-					elseif($tipo[$i]=='radio')
-					{
-						$loop = $this->input->post("respuesta-radio-$radio");
-						$radio++;
+                $this->preguntas_def_model->insert_batch($question);
+                $this->respuestas_def_model->insert_batch($answer);
 
-					}
-					elseif($tipo[$i]=='select')
-					{
-						$loop = $this->input->post("respuesta-select-$select");
-						$select++;
-					}
-					elseif($tipo[$i]=='check')
-					{
-						$loop = $this->input->post("respuesta-check-$check");
-						$check++;
-					}
+                $id_preguntas  = $this->preguntas_def_model->select('id')->where('id_evento', $id)->find_all();
+                $id_respuestas = $this->respuestas_def_model->select('id')->where('id_evento', $id)->find_all();
 
-					if($loop!='')
-					{
-						for ($j = 0; $j <= count($loop) - 1; $j++)
-						{
-							if ($j != count($loop)-1)
-							{
-								$resp .= $loop[$j] . '|';
-							}
-							else
-							{
-								$resp .= $loop[$j];
-							}
-						}
-					}
-
-					array_push($question,array('pregunta' =>$preguntas[$i],'tipo'=>$tipo[$i],'id_evento' => $id));
-					array_push($answer,array('respuesta'=>$resp,'id_evento'=>$id));
+                $relacion = array();
+                if(count($id_preguntas)&&count($id_respuestas))
+                {
 
 
-				}
 
+                    foreach($id_preguntas as $index => $ida)
+                    {
 
-				$this->preguntas_def_model->insert_batch($question);
-				$this->respuestas_def_model->insert_batch($answer);
+                        array_push($relacion,array('id_pregunta'=>$ida->id,'id_respuesta'=>$id_respuestas[$index]->id,'id_evento'=>$id));
 
-				$id_preguntas  = $this->preguntas_def_model->select('id')->where('id_evento', $id)->find_all();
-				$id_respuestas = $this->respuestas_def_model->select('id')->where('id_evento', $id)->find_all();
+                    }
 
-				$relacion = array();
-				if(count($id_preguntas)&&count($id_respuestas))
-				{
-					foreach($id_preguntas as $index => $ida)
-					{
-						array_push($relacion,array('id_pregunta'=>$ida->id,'id_respuesta'=>$id_respuestas[$index]->id,'id_evento'=>$id->id));
-					}
-					if($this->relacion_preg_resp_model->insert_batch($relacion)&&$this->convocatorias_model->insert_batch($data_convocatoria))
-					{
-						Template::set_message('Tu evento ha sido cargado con exito.', 'success');
-					}
-				}
+                    if($this->relacion_preg_resp_model->insert_batch($relacion)&&$this->convocatorias_model->insert_batch($data_convocatoria))
+                    {
+                        Template::set_message('Tu evento ha sido cargado con exito.', 'success');
+                    }
+                   
+                }
+            }
 
-				// redirect('/eventos');
+            redirect('/eventos');
+            }
+        }
 
-			}
-		}
+        Template::set('toolbar_title', 'Crear nuevo evento');
+        Template::set('tipo_evento',$tipos_evento);
+        Template::set('convocatorias',$convocatorias);
+        Template::set_view('content/agregar_evento');
 
-		Template::set('toolbar_title', 'Crear nuevo evento');
-		Template::set('tipo_evento',$tipos_evento);
-		Template::set('convocatorias',$convocatorias);
-		Template::set_view('content/agregar_evento');
+        Template::render();
 
-		Template::render();
+    }
 
-	}
-
-	/**
-	 * @param null $id
-	 *
-	 * Hace un update en algun evento
-	 *
-	 * Funcion encargada de hacer un evento
-	 */
+    /**
+     * @param null $id
+     *
+     * Hace un update en algun evento
+     *
+     * Funcion encargada de hacer un evento
+     */
     public function editar_evento($id = null)
     {
         $keys_bases = ['evento','categorias','inscripcion','paquetes','cronometraje','fotos','ruta','premiacion','generales','otros'];
@@ -236,138 +259,178 @@ class Eventos extends Admin_Controller
 
 
             $insert = $this->eventos_model->update($id, $data);
-            if ($this->eventos_model->update($id, $data)) {
-                $data_convocatoria = array();
+            if ($insert) {
+                Template::set_message('los cambios en informacion general se realizaron correctamente.', 'success');
+            }
+            else
+            {
+                Template::set_message('Ha ocurrido un error al actualizar la informacion general.', 'error');
+            }
 
-                for($i = 0; $i<=count($keys_bases)-1;$i++)
+            /****************************************************************************
+             *                  convocatorias                                           *
+             ***************************************************************************/
+            $data_convocatoria = array();
+
+            for($i = 0; $i<=count($keys_bases)-1;$i++)
+            {
+                $content = $keys_bases[$i];
+                $input = array(
+                    'contenido' => $this->input->post($content),
+                    'id_tit_convocatoria' => $this->input->post('id-'.$content)
+                );
+
+                array_push($data_convocatoria,$input);
+            }
+
+
+            $insert_convocatoria = $this->convocatorias_model->where('id_evento',$id)->update_batch($data_convocatoria,'id_tit_convocatoria');
+
+
+
+            if($insert_convocatoria)
+            {
+                Template::set_message('los cambios en convocatorias se realizaron correctamente.', 'success');
+            }
+            else
+            {
+                Template::set_message('Ha ocurrido un error al actualizar las convocatorias.', 'error');
+            }
+
+            /***************************************************************************************
+             *                          update resp preguntas                                      *
+             **************************************************************************************/
+
+            $preguntas      = $this->input->post('update-pregunta');
+            $ids_preguntas  = $this->input->post('id_preguntas');
+            $ids_respuestas = $this->input->post('id_respuestas');
+            $count  = 1;
+
+            $resp   = array();
+            $preg   = array();
+
+            for($i=0;$i<=count($preguntas)-1; $i++)
+            {
+                $respuesta = $this->input->post('update-respuesta-'.$count);
+
+                $result = '';
+                for ($j = 0; $j <= count($respuesta) - 1; $j++)
                 {
-                    $content = $keys_bases[$i];
-                    $input = array(
-                        'contenido' => $this->input->post($content),
-                        'id_tit_convocatoria' => $this->input->post('id-'.$content)
-                    );
+                    if ($j != count($respuesta)-1)
+                    {
+                        $result .= $respuesta[$j] . '|';
+                    }
+                    else
+                    {
+                        $result .= $respuesta[$j];
+                    }
+                }
+                array_push($resp,array('id'=>$ids_respuestas[$i],'respuesta'=>$result,'modified_on'=>(string)date('Y-m-d H:i:s')));
+                array_push($preg,array('id'=>$ids_preguntas[$i],'pregunta'=>$preguntas[$i],'modified_on'=>(string)date('Y-m-d H:i:s')));
+                $count++;
+            }
 
-                    array_push($data_convocatoria,$input);
+            $preg_bool  = $this->preguntas_def_model->update_batch($preg,'id');
+            $resp_bool  = $this->respuestas_def_model->update_batch($resp,'id');
+            if($resp_bool&&$preg_bool){
+
+                Template::set_message('los cambios en las preguntas se realizaron correctamente.', 'success');
+
+            }
+            else
+            {
+                Template::set_message('Ha ocurrido un error al actualizar las preguntas.', 'error');
+            }
+
+            /**********************************************************************************
+             *                              insert new preguntas y respuestas                 *
+             **********************************************************************************/
+            if($this->input->post('pregunta')) {
+
+                $preguntas = $this->input->post('pregunta');
+                $tipo = $this->input->post('tipo');
+
+
+                $question = array();
+                $answer   = array();
+                $radio    = 1;
+                $select   = 1;
+                $check    = 1;
+
+                for ($i = 0; $i <= count($preguntas) - 1; $i++) {
+                    $resp = '';
+
+                    if ($tipo[$i] == 'open')
+                    {
+                        $resp = 'open';
+                        $loop = '';
+                    }
+                    elseif ($tipo[$i] == 'radio')
+                    {
+                        $loop = $this->input->post("respuesta-radio-$radio");
+                        $radio++;
+
+                    }
+                    elseif ($tipo[$i] == 'select')
+                    {
+                        $loop = $this->input->post("respuesta-select-$select");
+                        $select++;
+                    }
+                    elseif ($tipo[$i] == 'check')
+                    {
+                        $loop = $this->input->post("respuesta-check-$check");
+                        $check++;
+                    }
+
+                    if ($loop != '') {
+                        for ($j = 0; $j <= count($loop) - 1; $j++) {
+                            if ($j != count($loop) - 1) {
+                                $resp .= $loop[$j] . '|';
+                            } else {
+                                $resp .= $loop[$j];
+                            }
+                        }
+                    }
+
+                    array_push($question, array('pregunta' => $preguntas[$i], 'tipo' => $tipo[$i], 'id_evento' => $id));
+                    array_push($answer, array('respuesta' => $resp, 'id_evento' => $id));
+
+
                 }
 
 
+                $this->preguntas_def_model->insert_batch($question);
+                $this->respuestas_def_model->insert_batch($answer);
 
-                if($this->convocatorias_model->where('id_evento',$id)->update_batch($data_convocatoria,'id_tit_convocatoria')) {
+                $id_preguntas  = $this->preguntas_def_model->select('id')->where('id_evento', $id)->limit(count($preguntas))->order_by('id','desc')->find_all();
+                $id_respuestas = $this->respuestas_def_model->select('id')->where('id_evento', $id)->limit(count($preguntas))->order_by('id','desc')->find_all();
 
-                    $preguntas      = $this->input->post('update-pregunta');
-                    $ids_preguntas  = $this->input->post('id_preguntas');
-                    $ids_respuestas = $this->input->post('id_respuestas');
-                    $count  = 1;
+                $relacion = array();
 
-                    $resp   = array();
-                    $preg   = array();
+                if(count($id_preguntas)&&count($id_respuestas))
+                {
 
-                    for($i=0;$i<=count($preguntas)-1; $i++)
+
+
+                    foreach($id_preguntas as $index => $ida)
                     {
-                        $respuesta = $this->input->post('update-respuesta-'.$count);
 
-                        $result = '';
-                        for ($j = 0; $j <= count($respuesta) - 1; $j++)
-                        {
-                            if ($j != count($respuesta)-1)
-                            {
-                                $result .= $respuesta[$j] . '|';
-                            }
-                            else
-                            {
-                                $result .= $respuesta[$j];
-                            }
-                        }
-                        array_push($resp,array('id'=>$ids_respuestas[$i],'respuesta'=>$result,'modified_on'=>(string)date('Y-m-d H:i:s')));
-                        array_push($preg,array('id'=>$ids_preguntas[$i],'pregunta'=>$preguntas[$i],'modified_on'=>(string)date('Y-m-d H:i:s')));
-                        $count++;
-                    }
-
-                    $preg_bool  = $this->preguntas_def_model->update_batch($preg,'id');
-                    $resp_bool  = $this->respuestas_def_model->update_batch($resp,'id');
-                    if($resp_bool&&$preg_bool){
-
-
-                        if($this->input->post('pregunta')) {
-                            $preguntas = $this->input->post('pregunta');
-                            $tipo = $this->input->post('tipo');
-
-
-                            $question = array();
-                            $answer   = array();
-                            $radio    = 1;
-                            $select   = 1;
-                            $check    = 1;
-
-                            for ($i = 0; $i <= count($preguntas) - 1; $i++) {
-                                $resp = '';
-                                if ($tipo[$i] == 'open') {
-                                    $resp = 'open';
-                                    $loop = '';
-                                } elseif ($tipo[$i] == 'radio') {
-                                    $loop = $this->input->post("respuesta-radio-$radio");
-                                    $radio++;
-
-                                } elseif ($tipo[$i] == 'select') {
-                                    $loop = $this->input->post("respuesta-select-$select");
-                                    $select++;
-                                } elseif ($tipo[$i] == 'check') {
-                                    $loop = $this->input->post("respuesta-check-$check");
-                                    $check++;
-                                }
-
-                                if ($loop != '') {
-                                    for ($j = 0; $j <= count($loop) - 1; $j++) {
-                                        if ($j != count($loop) - 1) {
-                                            $resp .= $loop[$j] . '|';
-                                        } else {
-                                            $resp .= $loop[$j];
-                                        }
-                                    }
-                                }
-
-                                array_push($question, array('pregunta' => $preguntas[$i], 'tipo' => $tipo[$i], 'id_evento' => $id));
-                                array_push($answer, array('respuesta' => $resp, 'id_evento' => $id));
-
-
-                            }
-
-
-                            $this->preguntas_def_model->insert_batch($question);
-                            $this->respuestas_def_model->insert_batch($answer);
-
-                            $id_preguntas  = $this->preguntas_def_model->select('id')->where('id_evento', $id)->limit(count($preguntas))->order_by('id','desc')->find_all();
-                            $id_respuestas = $this->respuestas_def_model->select('id')->where('id_evento', $id)->limit(count($preguntas))->order_by('id','desc')->find_all();
-
-                            $relacion = array();
-                            if(count($id_preguntas)&&count($id_respuestas))
-                            {
-
-
-
-                                foreach($id_preguntas as $index => $ida)
-                                {
-
-                                    array_push($relacion,array('id_pregunta'=>$ida->id,'id_respuesta'=>$id_respuestas[$index]->id,'id_evento'=>$id));
-
-                                }
-
-                                if($this->relacion_preg_resp_model->insert_batch($relacion)) {
-                                    Template::set_message('las respuestas se insertaron correctamente.', 'success');
-
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Template::set_message('El evento se guardo correctamente.', 'success');
-                            redirect('/eventos');
-                        }
+                        array_push($relacion,array('id_pregunta'=>$ida->id,'id_respuesta'=>$id_respuestas[$index]->id,'id_evento'=>$id));
 
                     }
 
+                    if($this->relacion_preg_resp_model->insert_batch($relacion)) {
+                        Template::set_message('las respuestas se insertaron correctamente.', 'success');
+
+                    }
+                    else
+                    {
+                        Template::set_message('Ha ocurrido un error al insertar las preguntas.', 'error');
+                    }
                 }
             }
+            redirect('/eventos');
+
         }
 
         Template::set('post', $this->eventos_model->find($id));
@@ -380,8 +443,12 @@ class Eventos extends Admin_Controller
         Template::render();
     }
 
-
-    public function ver_inscritos($id)
+    /**
+    * Ver inscritos en un evento
+    *   
+    * Funcion encargada de mostrar los inscritos a un evento
+    */
+   public function ver_inscritos($id)
     {
         $inscritos   = $this->inscripciones_model->select('usuarios.nombre,usuarios.apellido_paterno,usuarios.apellido_materno,usuarios.email,tbl_inscripciones.status,tbl_inscripciones.fecha_inscripcion')->
         where(array('tbl_inscripciones.deleted'=> 0,'id_evento'=>$id))->join('usuarios','tbl_inscripciones.id_usuario = usuarios.idUser')->find_all();
@@ -391,17 +458,18 @@ class Eventos extends Admin_Controller
         Template::render();
     }
 
-    /******************************************************************************************************************
-     *                                      funciones privadas                                                        *
-     ******************************************************************************************************************/
+
+    /*****************************************************************************************************
+    *                                       Funciones privadas
+    *
+    ******************************************************************************************************/
+
     /**
-     * @return array
-     *
-     * obtener los tipos de eventos existentes
-     *
-     * Funcion encargada de obtener todos los tipos de evento
-     * carrera, maraton,blabla
-     */
+    * Devuelve una lista de los tipos de evento
+    *
+    * Funcion encargada de mostrar una lista de 
+    * los tipos de eventos disponibles
+    */
     private function get_tipo_evento()
     {
 
